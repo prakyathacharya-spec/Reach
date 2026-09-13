@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  googleId    String   @unique
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+
+  senders          Sender[]
+  campaigns        Campaign[]
+  slackIntegration SlackIntegration?
+}
+
+model Sender {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  name         String
+  etherealUser String
+  etherealPass String
+  createdAt    DateTime @default(now())
+
+  emails Email[]
+
+  @@index([userId])
+}
+
+model Campaign {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  subject        String
+  body           String   @db.Text
+  startTime      DateTime
+  delayMs        Int      @default(2000)
+  hourlyLimit    Int      @default(200)
+  createdAt      DateTime @default(now())
+
+  emails Email[]
+
+  @@index([userId])
+}
+
+enum EmailStatus {
+  pending
+  scheduled
+  sent
+  failed
+}
+
+model Email {
+  id           String      @id @default(uuid())
+  campaignId   String
+  campaign     Campaign    @relation(fields: [campaignId], references: [id])
+  senderId     String
+  sender       Sender      @relation(fields: [senderId], references: [id])
+  recipient    String
+  subject      String
+  status       EmailStatus @default(pending)
+  scheduledAt  DateTime
+  sentAt       DateTime?
+  bullJobId    String?
+  attemptCount Int         @default(0)
+  lastError    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([campaignId])
+  @@index([senderId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model SlackIntegration {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  webhookUrl String
+  teamName   String?
+  connectedAt DateTime @default(now())
+}
